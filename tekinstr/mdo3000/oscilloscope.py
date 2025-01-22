@@ -15,9 +15,8 @@ class Oscilloscope(OscilloscopeBase, kind="Oscilloscope"):
 
     def __init__(self, instr, n_channels):
         super().__init__(instr)
-        self._channels = [Channel(self, x) for x in range(1, n_channels + 1)]
-        for x, ch in enumerate(self._channels, 1):
-            setattr(self, f"ch{x}", ch)
+        self.analog_channels = [Channel(self, x, "CH") for x in range(1, n_channels + 1)]
+        self.digital_channels = [Channel(self, x, "D") for x in range(0, 15)]
         self.trigger = Trigger(self, "A")
         self.measurement = Measurement(self, 4)
 
@@ -100,8 +99,8 @@ class Channel(ChannelBase, kind="CH"):
         CHx (int): channel number
     """
 
-    def __init__(self, owner, CHx):
-        super().__init__(owner, CHx)
+    def __init__(self, owner, CHx, ch_type):
+        super().__init__(owner, CHx, ch_type = ch_type)
         self._probe = Probe(self)
 
     @property
@@ -112,37 +111,37 @@ class Channel(ChannelBase, kind="CH"):
     @property
     def label(self):
         """label (str): channel label"""
-        return self._visa.query(f"CH{self._ch}:LABEL?").strip('"')
+        return self._visa.query(f"{self._type}{self._ch}:LABEL?").strip('"')
 
     @label.setter
     @validate
     def label(self, value):
-        self._visa.write(f"CH{self._ch}:LABEL '{value}'")
+        self._visa.write(f"{self._type}{self._ch}:LABEL '{value}'")
 
     @property
     def coupling(self):
         """value (str): channel coupling AC or DC"""
-        return self._visa.query(f"CH{self._ch}:COUPLING?")
+        return self._visa.query(f"{self._type}{self._ch}:COUPLING?")
 
     @coupling.setter
     @validate
     def coupling(self, value):
-        self._visa.write(f"CH{self._ch}:COUPLING {value}")
+        self._visa.write(f"{self._type}{self._ch}:COUPLING {value}")
 
     @property
     def termination(self):
         """value (float): channel termination in ohms, (1e6, 50, 75) Ω"""
-        return float(self._visa.query(f"CH{self._ch}:TER?"))
+        return float(self._visa.query(f"{self._type}{self._ch}:TER?"))
 
     @termination.setter
     @validate
     def termination(self, value):
-        self._visa.write(f"CH{self._ch}:TER {float(value)}")
+        self._visa.write(f"{self._type}{self._ch}:TER {float(value)}")
 
     @property
     def bandwidth(self):
         """value (float or str): float hertz or FULL"""
-        bandwidth = self._visa.query(f"CH{self._ch}:BANDWIDTH?")
+        bandwidth = self._visa.query(f"{self._type}{self._ch}:BANDWIDTH?")
         try:
             bandwidth = float(bandwidth)
         except ValueError:
@@ -156,7 +155,7 @@ class Channel(ChannelBase, kind="CH"):
             bandwidth = float(value)
         except ValueError:
             bandwidth = value
-        self._visa.write(f"CH{self._ch}:BANDWIDTH {bandwidth}")
+        self._visa.write(f"{self._type}{self._ch}:BANDWIDTH {bandwidth}")
 
     @property
     def trigger_level(self):
@@ -164,7 +163,7 @@ class Channel(ChannelBase, kind="CH"):
         float: level in volts
         str: ECL (-1.3 V) or TTL (1.4 V)
         """
-        level = self._visa.query(f"TRIGGER:A:LEVEL:CH{self._ch}?")
+        level = self._visa.query(f"TRIGGER:A:LEVEL:{self._type}{self._ch}?")
         try:
             level = float(level)
         except ValueError:
@@ -174,24 +173,24 @@ class Channel(ChannelBase, kind="CH"):
     @trigger_level.setter
     @validate
     def trigger_level(self, value):
-        self._visa.write(f"TRIGGER:A:LEVEL:CH{self._ch} {value}")
+        self._visa.write(f"TRIGGER:A:LEVEL:{self._type}{self._ch} {value}")
 
     @property
     def logic_input(self):
         """value (str): input condition for logic triggering, {HIGH, LOW, X}"""
-        q_str = f"TRIGGER:A:LOGIC:INPUT:CH{self._ch}?"
+        q_str = f"TRIGGER:A:LOGIC:INPUT:{self._type}{self._ch}?"
         return self._visa.query(q_str)
 
     @logic_input.setter
     @validate
     def logic_input(self, value):
-        cmd_str = f"TRIGGER:A:LOGIC:INPUT:CH{self._ch} {value}"
+        cmd_str = f"TRIGGER:A:LOGIC:INPUT:{self._type}{self._ch} {value}"
         self._visa.write(cmd_str)
 
     @property
     def logic_threshold(self):
         """value (float or str): A-trigger logic threshold, {voltage, ECL, TTL}"""
-        q_str = f"TRIGGER:A:LOGIC:THRESHOLD:CH{self._ch}?"
+        q_str = f"TRIGGER:A:LOGIC:THRESHOLD:{self._type}{self._ch}?"
         threshold = self._visa.query(q_str)
         try:
             threshold = float(threshold)
@@ -202,7 +201,7 @@ class Channel(ChannelBase, kind="CH"):
     @logic_threshold.setter
     @validate
     def logic_threshold(self, value):
-        cmd_str = f"TRIGGER:A:LOGIC:THRESHOLD:CH{self._ch} {value}"
+        cmd_str = f"TRIGGER:A:LOGIC:THRESHOLD:{self._type}{self._ch} {value}"
         self._visa.write(cmd_str)
 
 
@@ -305,21 +304,21 @@ class Probe(ProbeBase, kind="Probe"):
     @property
     def model(self):
         """(str): probe model"""
-        return self._visa.query(f"CH{self._ch}:PROBE:MODEL?").strip('"')
+        return self._visa.query(f"{self._type}{self._ch}:PROBE:MODEL?").strip('"')
 
     @property
     def gain(self):
         """value (float): probe gain factor (output/input)"""
-        return float(self._visa.query(f"CH{self._ch}:PROBE:GAIN?"))
+        return float(self._visa.query(f"{self._type}{self._ch}:PROBE:GAIN?"))
 
     @gain.setter
     def gain(self, value):
-        self._visa.write(f"CH{self._ch}:PROBE:GAIN {value}")
+        self._visa.write(f"{self._type}{self._ch}:PROBE:GAIN {value}")
 
     @property
     def impedance(self):
         """value (float): probe impedance in ohms"""
-        return float(self._visa.query(f"CH{self._ch}:PROBE:RESISTANCE?"))
+        return float(self._visa.query(f"{self._type}{self._ch}:PROBE:RESISTANCE?"))
 
     def __repr__(self):
         owner = self._owner.__repr__().strip("<>")

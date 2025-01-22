@@ -2,9 +2,6 @@
 import re
 from tekinstr.model import Model
 from tekinstr.mdo3000.oscilloscope import Oscilloscope
-from tekinstr.mdo3000.dvm import DVM
-from tekinstr.mdo3000.spectrum_analyzer import SpectrumAnalyzer
-from tekinstr.mdo3000.filesysystem import FileSystem
 from tekinstr.common import validate
 
 
@@ -17,45 +14,10 @@ class MDO3000(Model):
 
     def __init__(self, visa):
         super().__init__(visa)
-        features = self._get_configuration()
-        n_channels = features["ANALOG:NUMCHANNELS"]
+        n_channels = 4
         self.oscilloscope = Oscilloscope(self, n_channels)
-        if features["DVM"]:
-            self.dvm = DVM(self)
-        if features["RF:NUMCHANNELS"] > 0:
-            self.spectrum_analyzer = SpectrumAnalyzer(self)
         self._display = self._get_select()[0]
-        self.filesystem = FileSystem(self)
 
-    @property
-    def features(self):
-        """(dict): model features"""
-        return self._get_configuration()
-
-    def _get_configuration(self):
-        """Get the instrument configuration"""
-        bool_features = [
-            "ADVMATH",
-            "AFG",
-            "APPLICATIONS:POWER",
-            "ARB",
-            "AUXIN",
-            "DVM",
-        ]
-        int_features = [
-            "ANALOG:NUMCHANNELS",
-            "DIGITAL:NUMCHANNELS",
-            "NUMMEAS",
-            "RF:NUMCHANNELS",
-        ]
-        configuration = {}
-        for feature in bool_features:
-            value = bool(int(self._visa.query(f"CONFIGURATION:{feature}?")))
-            configuration[feature] = value
-        for feature in int_features:
-            value = int(self._visa.query(f"CONFIGURATION:{feature}?"))
-            configuration[feature] = value
-        return configuration
 
     def _get_select(self):
         """Get the current display selection"""

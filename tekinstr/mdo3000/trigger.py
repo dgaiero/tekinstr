@@ -80,7 +80,7 @@ class LogicTrigger(InstrumentSubsystem, kind="Logic"):
     def __init__(self, owner):
         super().__init__(owner)
         self._designation = "A"
-        n_channels = self._instr.features["ANALOG:NUMCHANNELS"]
+        n_channels = 4
         self._channels = [LogicInputChannel(self, n) for n in range(1, n_channels + 1)]
         for x, ch in enumerate(self._channels, 1):
             setattr(self, f"ch{x}", ch)

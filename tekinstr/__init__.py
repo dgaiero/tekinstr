@@ -2,6 +2,7 @@
 import pyvisa
 from tekinstr.common import _get_idn
 from tekinstr.mdo3000.mdo3000 import MDO3000
+from tekinstr.mdo3000.mdo3000 import MDO3000 as MSO3000
 from tekinstr.tds3000.tds3000 import TDS3000
 from tekinstr.mso4000b.mso4000b import MSO4000B
 from tekinstr.mso4000.mso4000 import MSO4000
@@ -9,6 +10,7 @@ from tekinstr.version import __version__
 
 MODEL_CLASS = {
     "MDO3012": MDO3000,
+    "MSO3014": MSO3000,
     "MDO3014": MDO3000,
     "MDO3022": MDO3000,
     "MDO3024": MDO3000,
@@ -43,7 +45,7 @@ class CommChannel:
     def __init__(self, address):
         self._address = address
         self._rm = pyvisa.ResourceManager()
-        self._visa = self._rm.open_resource(f"TCPIP::{address}")
+        self._visa = self._rm.open_resource(f"TCPIP::{address}::INSTR")
         self._visa.read_termination = "\n"
 
     def __enter__(self):

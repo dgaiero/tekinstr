@@ -6,6 +6,7 @@ import asyncio
 import itertools
 from dataclasses import dataclass
 import numpy as np
+import pandas as pd
 import pyvisa
 from tekinstr.instrument import Instrument, InstrumentSubsystem
 from tekinstr.common import validate
@@ -257,22 +258,24 @@ class OscilloscopeBase(Instrument, kind="OscilloscopeBase"):
         Returns:
             WaveformDT or numpy.ndarray
         """
-        chs = []
-        match = re.match("^CH(?P<first>[1-4])(?P<last>:[1-4])?|(MATH)$", channels)
-        if match is None:
-            raise ValueError(f"{channels} not a valid specification")
-        if match.groups()[2] is not None:
-            channels = [channels]
-        else:
-            first = int(match.group("first"))
-            last = match.group("last")
-            if last is None:
-                last = first
-            else:
-                last = int(last[-1])
-            for ch in range(first, last + 1):
-                chs.append(f"CH{ch}")
-            channels = chs
+        # chs = []
+        # match = re.match("^CH(?P<first>[1-4])(?P<last>:[1-4])?|(MATH)|$", channels)
+        # if match is None:
+        #     match = re.match("^D(?P<first>[0-15])(?P<last>:[0-15])?|(MATH)|$", channels)
+        #     if match is None:
+        #         raise ValueError(f"{channels} not a valid specification")
+        # if match.groups()[2] is not None:
+        #     channels = [channels]
+        # else:
+        #     first = int(match.group("first"))
+        #     last = match.group("last")
+        #     if last is None:
+        #         last = first
+        #     else:
+        #         last = int(last[-1])
+        #     for ch in range(first, last + 1):
+        #         chs.append(f"CH{ch}")
+        #     channels = chs
         if isinstance(samples, tuple):
             start, stop = samples
         elif isinstance(samples, int):
@@ -310,7 +313,10 @@ class OscilloscopeBase(Instrument, kind="OscilloscopeBase"):
             )
             data.append(y_offset + y_multiplier * (rawdata - y_position))
         self.acquisition_state = original_state
-        data = data[0] if len(data) == 1 else np.asarray(data)
+        data = np.asarray(data)
+        data = pd.DataFrame(data.T, columns=channels)
+        time_col = np.arange(start, stop+preamble["XINCR"]) * preamble["XINCR"]
+        data.insert(0, "Time", time_col)
         if wdt:
             time = [int(n) for n in time.strip().strip('"').split(":")]
             date = [int(n) for n in date.strip().strip('"').split("-")]
@@ -342,72 +348,73 @@ class ChannelBase(InstrumentSubsystem, kind="ChannelBase"):
         CHx (int): channel number
     """
 
-    def __init__(self, owner, CHx):
+    def __init__(self, owner, CHx, ch_type):
         super().__init__(owner)
         self._ch = CHx
+        self._type = ch_type
 
     @property
     def bandwidth(self):
         """value (str): TWENTY, ONEFIFTY or FULL"""
-        return self._visa.query(f"CH{self._ch}:BANDWIDTH?")
+        return self._visa.query(f"{self._type}{self._ch}:BANDWIDTH?")
 
     @bandwidth.setter
     def bandwidth(self, value):
-        self._visa.write(f"CH{self._ch}:BANDWIDTH {value}")
+        self._visa.write(f"{self._type}{self._ch}:BANDWIDTH {value}")
 
     @property
     def coupling(self):
         """value (str): AC, DC or GND"""
-        return self._visa.query(f"CH{self._ch}:COUPLING?")
+        return self._visa.query(f"{self._type}{self._ch}:COUPLING?")
 
     @coupling.setter
     def coupling(self, value):
-        self._visa.write(f"CH{self._ch}:COUPLING {value}")
+        self._visa.write(f"{self._type}{self._ch}:COUPLING {value}")
 
     @property
     def invert(self):
         """value (str): ON (1) or OFF (0)"""
-        return self._visa.query(f"CH{self._ch}:INVERT?")
+        return self._visa.query(f"{self._type}{self._ch}:INVERT?")
 
     @invert.setter
     def invert(self, value):
-        self._visa.write(f"CH{self._ch}:INVERT {value}")
+        self._visa.write(f"{self._type}{self._ch}:INVERT {value}")
 
     @property
     def offset(self):
         """value (float): value subtracted from the signal before acquisition"""
-        return float(self._visa.query(f"CH{self._ch}:OFFSET?"))
+        return float(self._visa.query(f"{self._type}{self._ch}:OFFSET?"))
 
     @offset.setter
     def offset(self, value):
-        self._visa.write(f"CH{self._ch}:OFFSET {value}")
+        self._visa.write(f"{self._type}{self._ch}:OFFSET {value}")
 
     @property
     def position(self):
         """value (float): vertical position in divisions from center graticule"""
-        return float(self._visa.query(f"CH{self._ch}:POSITION?"))
+        return float(self._visa.query(f"{self._type}{self._ch}:POSITION?"))
 
     @position.setter
     def position(self, value):
-        self._visa.write(f"CH{self._ch}:POSITION {value}")
+        self._visa.write(f"{self._type}{self._ch}:POSITION {value}")
 
     @property
     def scale(self):
         """value (float): vertical gain in y_unit per division"""
-        return float(self._visa.query(f"CH{self._ch}:SCALE?"))
+        return float(self._visa.query(f"{self._type}{self._ch}:SCALE?"))
 
     @scale.setter
     def scale(self, value):
-        self._visa.write(f"CH{self._ch}:SCALE {value}")
+        self._visa.write(f"{self._type}{self._ch}:SCALE {value}")
 
     @property
     def y_unit(self):
         """value (str): 'V' for voltage or 'A' for amperage"""
-        return self._visa.query(f"CH{self._ch}:YUN?").strip('"')
+        return self._visa.query(f"{self._type}{self._ch}:YUN?").strip('"')
 
     @y_unit.setter
     def y_unit(self, value):
-        self._visa.write(f"CH{self._ch}:YUN '{value}'")
+        self._visa.write(f"{self._type}{self._ch}:YUN '{value}'")
 
 
 class ProbeBase(InstrumentSubsystem, kind="ProbeBase"):
