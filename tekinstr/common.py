@@ -1,6 +1,7 @@
 """Common definitions"""
 from collections import namedtuple
 import functools
+import pyvisa
 
 IDN = namedtuple("IDN", ["manufacturer", "model", "serial_number", "firmware_version"])
 
@@ -49,7 +50,7 @@ class TekBase:
     """
 
     def __init__(self, visa):
-        self._visa = visa
+        self._visa: pyvisa.resources.Resource = visa
 
     def __setattr__(self, name, value):
         if hasattr(self, name) and isinstance(getattr(self, name), TekBase):

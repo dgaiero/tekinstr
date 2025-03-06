@@ -238,7 +238,7 @@ class OscilloscopeBase(Instrument, kind="OscilloscopeBase"):
         else:
             return ret_value
 
-    def read(self, channels, samples="all", timeout=10, wdt=True, previous=True):
+    def read(self, channels, samples="all", timeout=10, wdt=True, previous=True, monitoring_interface=None):
         """Transfer waveform data of the specified channel(s) from the oscilloscope
 
         Args:
@@ -258,24 +258,6 @@ class OscilloscopeBase(Instrument, kind="OscilloscopeBase"):
         Returns:
             WaveformDT or numpy.ndarray
         """
-        # chs = []
-        # match = re.match("^CH(?P<first>[1-4])(?P<last>:[1-4])?|(MATH)|$", channels)
-        # if match is None:
-        #     match = re.match("^D(?P<first>[0-15])(?P<last>:[0-15])?|(MATH)|$", channels)
-        #     if match is None:
-        #         raise ValueError(f"{channels} not a valid specification")
-        # if match.groups()[2] is not None:
-        #     channels = [channels]
-        # else:
-        #     first = int(match.group("first"))
-        #     last = match.group("last")
-        #     if last is None:
-        #         last = first
-        #     else:
-        #         last = int(last[-1])
-        #     for ch in range(first, last + 1):
-        #         chs.append(f"CH{ch}")
-        #     channels = chs
         if isinstance(samples, tuple):
             start, stop = samples
         elif isinstance(samples, int):
@@ -303,13 +285,17 @@ class OscilloscopeBase(Instrument, kind="OscilloscopeBase"):
         for channel in channels:
             self._visa.write(f"DATA:SOURCE {channel}")
             preamble = self._get_wfmpre()
+            print(preamble)
             y_offset = preamble["YZERO"]  # in y_unit
             y_multiplier = preamble[
                 "YMULT"
             ]  # conversion from data point level to y_unit
             y_position = preamble["YOFF"]  # in data point levels
             rawdata = self._visa.query_binary_values(
-                "CURVE?", "b", container=np.ndarray
+                "CURVE?",
+                "b",
+                container=np.ndarray,
+                monitoring_interface=monitoring_interface,
             )
             data.append(y_offset + y_multiplier * (rawdata - y_position))
         self.acquisition_state = original_state
