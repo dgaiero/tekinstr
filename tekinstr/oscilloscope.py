@@ -285,7 +285,6 @@ class OscilloscopeBase(Instrument, kind="OscilloscopeBase"):
         for channel in channels:
             self._visa.write(f"DATA:SOURCE {channel}")
             preamble = self._get_wfmpre()
-            print(preamble)
             y_offset = preamble["YZERO"]  # in y_unit
             y_multiplier = preamble[
                 "YMULT"
